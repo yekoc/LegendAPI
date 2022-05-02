@@ -10,6 +10,7 @@ namespace LegendAPI {
         internal static Dictionary<string, string[]> RecipeCatalog = new Dictionary<string, string[]>();
         internal static Dictionary<string, List<string>> GroupCatalog = new Dictionary<string, List<string>>();
         internal static List<string> badentrypointsignal = new List<string>();
+	internal static bool enabled = true;
         public static void Awake() {
             On.GameController.Awake += (orig, self) => {
                 orig(self);
@@ -19,7 +20,8 @@ namespace LegendAPI {
             };
         }
         public static void LateInit() {
-            foreach (string Result in RecipeCatalog.Keys) {
+        if(enabled){
+	   foreach (string Result in RecipeCatalog.Keys) {
                 if (!ItemRecipe.recipes.ContainsKey(Result)) {
                     ItemRecipe.recipes.Add(Result, RecipeCatalog[Result]);
                 }
@@ -39,10 +41,13 @@ namespace LegendAPI {
                     GroupItemManager.groupsDict[Group] = GroupCatalog[Group];
                 }
             }
-	    if(ItemCatalog.Count == 0){
-	    	
-	    }
-        }
+	}
+	else{	
+         On.TextManager.GetItemName -= CustomItemText;
+         On.LootManager.ResetAvailableItems -= CatalogToDict;
+         On.IconManager.GetItemIcon -= CustomItemIcon;
+	}
+	}
 
         public static void Register(ItemInfo Info) {
             if (Info.text.Equals(default(global::TextManager.ItemInfo))) {
@@ -126,7 +131,7 @@ namespace LegendAPI {
         }
         private static Sprite CustomItemIcon(On.IconManager.orig_GetItemIcon orig,string givenID) {
            if(ItemCatalog.ContainsKey(givenID)){
-		Sprite icon = ItemCatalog[givenID].icon??IconManager.ItemIcons[IconManager.unavailableItemName];
+		Sprite icon = ItemCatalog[givenID].icon ??IconManager.ItemIcons[IconManager.unavailableItemName];
                 if (!IconManager.itemIcons.ContainsKey(givenID)) {
                         IconManager.itemIcons.Add(givenID,icon);
                 }

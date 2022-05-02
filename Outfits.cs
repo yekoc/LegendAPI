@@ -34,29 +34,11 @@ namespace LegendAPI {
 
         public static Dictionary<string, OutfitInfo> OutfitCatalog = new Dictionary<string, OutfitInfo>();
         internal static List<string> Aisle = new List<string>();
-        public static OutfitModStat.OutfitModType CustomModType = (OutfitModStat.OutfitModType)20;
+        internal static bool enabled = true;
+	public static OutfitModStat.OutfitModType CustomModType = (OutfitModStat.OutfitModType)20;
         static public void Awake() {
             On.Outfit.UpdateOutfitDictData += CatalogToDict;
             On.OutfitMerchantNpc.CreateOutfitStoreItem += OutfitForSale;
-            /*	IL.OutfitMerchantNpc.CreateOutfitStoreItem += (il) =>{
-                  ILCursor c = new ILCursor(il);
-                          c.GotoNext(
-                            x => x.MatchLdloc(0),
-                            x => x.MatchLdarg(2),
-                            x => x.MatchStfld(typeof(OutfitStoreItem),"outfitID"),
-                    x => x.MatchLdloc(0),
-                            x => x.MatchLdarg(0),
-                    x => x.MatchStfld(typeof(OutfitStoreItem),"outfitMerchant"),
-                            x => x.MatchLdloc(0),
-                            x => x.MatchLdarg(0),
-                    x => x.MatchStfld(typeof(OutfitStoreItem),"parentNpc")
-                            );
-                  c.Index +=9;
-                  c.Emit(OpCodes.Ldloc_0);
-                  c.EmitDelegate<Action<OutfitStoreItem>>((osi) =>{
-                          osi.costStat.AddMod(new NumVarStatMod("outcost",OutfitCatalog[osi.outfitID].cost,10,VarStatModType.Override));
-                          });
-                };*/
             On.OutfitMerchantNpc.ConditionalRequirementMet += CustomCondition;
             On.OutfitMerchantNpc.LoadOutfitItems += (orig, self) => { orig(self); Aisle.Clear(); };
             On.GameController.Awake += (orig, self) => {
