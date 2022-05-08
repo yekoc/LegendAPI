@@ -147,6 +147,29 @@ namespace LegendAPI {
 		return eleDict.ContainsKey(element)? eleDict[element].statusEffectChanceString : orig(self,element);
 	   };
 
+           IL.RandomDisasters.SpawnDisaster += (il) => {
+               ILCursor c = new ILCursor(il);
+               int rand = -1;
+               ILLabel lab = c.DefineLabel();
+               if(c.TryGotoNext(x=>x.MatchLdcI4(0),x=>x.MatchLdcI4(5),x=>x.MatchCallOrCallvirt(out _),x => x.MatchStloc(out rand))){
+                   c.Index+=2;
+                   c.EmitDelegate<Func<int,int>>((coun) => coun + eleDict.Values.Count((el) => el.spawnDisaster != null));
+                   c.GotoNext(MoveType.After,x=>x.MatchSwitch(out _),x=>x.MatchBr(out _));
+                   c.GotoLabel((ILLabel)(c.Prev.Operand));
+                   lab = (ILLabel)c.Prev.Operand;
+                   c.Emit(OpCodes.Ldloc,rand);
+                   c.Emit(OpCodes.Ldarg_0);
+                   c.EmitDelegate<Func<int,RandomDisasters,bool>>((ran,self) => {
+                        if(ran == 4){
+                          return false;
+                        }
+                        self.parentEntity.StartCoroutine(eleDict.Values.Where((el) => el.spawnDisaster != null).ElementAt(ran-4).spawnDisaster?.Invoke(self.parentPosition));
+                        return true;
+                   });
+                   c.Emit(OpCodes.Brtrue,lab);
+               }
+           };
+
 	   IL.Health.GetElementalDamageModifier += ElementalDamageModifier;
 	   IL.HealthProxy.GetElementalDamageModifier += ElementalDamageModifierProxy; 
 	   IL.AoEStatusEffects.OnDoTEvent += ToStringRedirect;
@@ -283,6 +306,7 @@ namespace LegendAPI {
 	public Type statusEffectType = null;
 	public string statusEffectChanceString = null;
 	public Type elementalBurstType = null;
+        public Func<Vector2,System.Collections.IEnumerator> spawnDisaster = null;
 /*	public Type finalBossAttackStateType = null;
 	internal BossSkillState finalBossAttackState = null;
 	internal BossSkillState finalBossSuperState = null;
