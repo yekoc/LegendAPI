@@ -104,7 +104,10 @@ namespace LegendAPI {
                         Tier.Remove(Info.item.ID);
                     }
                 }
-                LootManager.itemTierDict[Info.tier].Add(Info.item.ID);
+                if(Info.priceMultiplier != 1)
+                  LootManager.PriceDict[Info.item.ID] = Info.priceMultiplier != -1? Info.priceMultiplier : Info.item.isCursed? 0 : 1;
+                if(!Info.item.isCursed)
+                 LootManager.itemTierDict[Info.tier].Add(Info.item.ID);
             }
             LateInit();
             orig();
@@ -160,6 +163,7 @@ namespace LegendAPI {
         public global::TextManager.ItemInfo text;
         public string group = null;
         public Sprite icon = null;
+        public int priceMultiplier = -1;
         /*
               public static ItemInfo GetInfo(string givenID){
                 if(Items.ItemCatalog.ContainsKey(givenID))
