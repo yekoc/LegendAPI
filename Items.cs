@@ -1,15 +1,15 @@
 using BepInEx;
 using System;
 using System.Collections.Generic;
-using On;
+using System.Reflection;
 using UnityEngine;
+using MonoMod.RuntimeDetour;
 
 namespace LegendAPI {
     public static class Items {
         internal static Dictionary<string, ItemInfo> ItemCatalog = new Dictionary<string, ItemInfo>();
         internal static Dictionary<string, string[]> RecipeCatalog = new Dictionary<string, string[]>();
         internal static Dictionary<string, List<string>> GroupCatalog = new Dictionary<string, List<string>>();
-        internal static List<string> badentrypointsignal = new List<string>();
 	internal static bool enabled = true;
         public static void Awake() {
             On.GameController.Awake += (orig, self) => {
@@ -87,10 +87,6 @@ namespace LegendAPI {
         }
 
         private static void CatalogToDict(On.LootManager.orig_ResetAvailableItems orig) {
-            if (badentrypointsignal.Contains("Loot")) {
-                orig();
-                return;
-            }
             foreach (ItemInfo Info in ItemCatalog.Values) {
                 if (!LootManager.completeItemDict.ContainsKey(Info.item.ID)) {
                     LootManager.completeItemDict.Add(Info.item.ID, Info.item);
@@ -111,13 +107,9 @@ namespace LegendAPI {
                 LootManager.itemTierDict[Info.tier].Add(Info.item.ID);
             }
             LateInit();
-            badentrypointsignal.Add("Loot");
             orig();
         }
         private static string CustomItemText(On.TextManager.orig_GetItemName orig, string givenID) {
-            if (badentrypointsignal.Contains("Text")) {
-                return orig(givenID);
-            }
             foreach (ItemInfo Info in ItemCatalog.Values) {
                 if (!TextManager.itemInfoDict.ContainsKey(Info.item.ID)) {
                     TextManager.itemInfoDict.Add(Info.item.ID, Info.text);
@@ -126,17 +118,16 @@ namespace LegendAPI {
                     TextManager.itemInfoDict[Info.item.ID] = Info.text;
                 }
             }
-            badentrypointsignal.Add("Text");
             return orig(givenID);
         }
         private static Sprite CustomItemIcon(On.IconManager.orig_GetItemIcon orig,string givenID) {
            if(ItemCatalog.ContainsKey(givenID)){
-		Sprite icon = ItemCatalog[givenID].icon ??IconManager.ItemIcons[IconManager.unavailableItemName];
-                if (!IconManager.itemIcons.ContainsKey(givenID)) {
-                        IconManager.itemIcons.Add(givenID,icon);
+		Sprite icon = ItemCatalog[givenID].icon??IconManager.ItemIcons[IconManager.unavailableItemName];
+                if (!IconManager.ItemIcons.ContainsKey(givenID)) {
+                        IconManager.ItemIcons.Add(givenID,icon);
                 }
-		else if(IconManager.itemIcons[givenID] != icon) {
-                        IconManager.itemIcons[givenID] = icon;
+		else if(IconManager.ItemIcons[givenID] != icon) {
+                        IconManager.ItemIcons[givenID] = icon;
                 }
 	   }
 	   return orig(givenID);
