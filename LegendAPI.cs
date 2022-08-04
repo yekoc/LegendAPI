@@ -13,6 +13,7 @@ namespace LegendAPI {
             Outfits.Awake();
 	    Elements.Awake();
 	    Utility.Hook();
+            Music.Awake();
         }
 	public void Start(){
 	  if(Outfits.OutfitCatalog.Count == 0){
