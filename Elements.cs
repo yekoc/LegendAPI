@@ -2,9 +2,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using Mono.Cecil.Cil;
 using MonoMod.Cil;
 using UnityEngine;
+
 
 namespace LegendAPI {
     public static class Elements {
@@ -170,19 +172,24 @@ namespace LegendAPI {
                }
            };
 
-	   IL.Health.GetElementalDamageModifier += ElementalDamageModifier;
-	   IL.HealthProxy.GetElementalDamageModifier += ElementalDamageModifierProxy; 
-	   IL.AoEStatusEffects.OnDoTEvent += ToStringRedirect;
-	   IL.SevenFlush.ctor += ToStringRedirect;
-	   IL.ElementalDamageUp.ctor += ToStringRedirect;
-	   IL.ElementalWeaknessDotEffect.ctor += ToStringRedirect;
-	   IL.ChaosWeapon.ResetProjectile += ToStringRedirect;
-	   IL.SigEleDamageUp.DamageDownCheck += ToStringRedirect;
-	   IL.SigEleDamageUp.DamageUpCheck += ToStringRedirect;
-	   IL.SkillSelectionUI.LoadSkills += ToStringRedirect;
-	   IL.ElementSelectionUI.LoadElements += ToStringRedirect;
-	   IL.GameData.PrintData += ToStringRedirect;
-	}
+           IL.Health.GetElementalDamageModifier += ElementalDamageModifier;
+           IL.HealthProxy.GetElementalDamageModifier += ElementalDamageModifierProxy;
+           new MonoMod.RuntimeDetour.Hook(typeof(Enum).GetMethod("ToString",System.Type.EmptyTypes),typeof(Elements).GetMethod("ToStringRedir",(BindingFlags)(-1)));
+           new MonoMod.RuntimeDetour.Hook(typeof(Enum).GetMethod("Parse",new Type[]{typeof(Type),typeof(string)}),typeof(Elements).GetMethod("ParseRedir",(BindingFlags)(-1)));
+        }
+
+        public static string ToStringRedir(Func<Enum,string> orig,Enum self){
+           return ((self.GetType() == typeof(ElementType)) && eleDict.ContainsKey((ElementType)self))? eleDict[(ElementType)self].name : orig(self);
+        }
+        public static Enum ParseRedir(Func<Type,string,Enum> orig,Type type,string data){
+           if(type == typeof(ElementType)){
+               foreach(var elePair in eleDict){
+                   if(elePair.Value.name == data || elePair.Key.ToString() == data)
+                       return elePair.Key;
+               }
+           }
+           return orig(type,data);
+        }
 
 	public static ElementType Register(ElementInfo info){
 		ElementType id = (ElementType)info.name.GetHashCode();
@@ -209,16 +216,6 @@ namespace LegendAPI {
 		return id;
 	}
 
-	internal static void ToStringRedirect(ILContext il){
-		ILCursor c = new ILCursor(il);
-		while(c.TryGotoNext(x=>x.MatchConstrained(typeof(ElementType)),x=>x.MatchCallOrCallvirt(typeof(object).GetMethod(nameof(object.ToString))))){
-		   c.Emit(OpCodes.Dup);
-		   c.Index += 2;
-		   c.Emit(OpCodes.Pop);
-		   c.Emit(OpCodes.Ldobj,typeof(ElementType));
-		   c.EmitDelegate<Func<ElementType,string>>((ele) =>{return eleDict.ContainsKey(ele)? eleDict[ele].name : ele.ToString(); });
-		}
-	}
 	internal static void DefaultToCustomElementSwitchCase(ILContext il){
 		ILCursor c = new ILCursor(il);
 		c.Index = -1;
@@ -234,7 +231,7 @@ namespace LegendAPI {
 	internal static void ElementalDamageModifierProxy(ILContext il){
 		ILCursor c = new ILCursor(il);
 		ILLabel lab = c.DefineLabel();
-		if(c.TryGotoNext(MoveType.After,x=>x.MatchStfld(typeof(HealthProxy).GetField(nameof(HealthProxy.eleDmgMulti),(System.Reflection.BindingFlags)(-1))),x=>x.MatchBr(out lab))){
+		if(c.TryGotoNext(MoveType.After,x=>x.MatchStfld(typeof(HealthProxy).GetField(nameof(HealthProxy.eleDmgMulti),(BindingFlags)(-1))),x=>x.MatchBr(out lab))){
 		   c.Emit(OpCodes.Ldarg_0);
 		   c.Emit(OpCodes.Ldarg_1);
 		   c.EmitDelegate<Func<HealthProxy,ElementType,bool>>((self,element) =>{
@@ -256,7 +253,7 @@ namespace LegendAPI {
 	internal static void ElementalDamageModifier(ILContext il){
 		ILCursor c = new ILCursor(il);
 		ILLabel lab = c.DefineLabel();
-		if(c.TryGotoNext(MoveType.After,x=>x.MatchStfld(typeof(Health).GetField(nameof(Health.eleDmgModVal),(System.Reflection.BindingFlags)(-1))),x=>x.MatchBr(out lab))){
+		if(c.TryGotoNext(MoveType.After,x=>x.MatchStfld(typeof(Health).GetField(nameof(Health.eleDmgModVal),(BindingFlags)(-1))),x=>x.MatchBr(out lab))){
 		   c.Emit(OpCodes.Ldarg_0);
 		   c.Emit(OpCodes.Ldarg_1);
 		   c.EmitDelegate<Func<Health,ElementType,bool>>((self,element) =>{
@@ -277,7 +274,7 @@ namespace LegendAPI {
 	}
 	internal static void HookTakeDamage(ILContext il){
 		ILCursor c = new ILCursor(il);
-		if(c.TryGotoNext(x => x.MatchLdfld(typeof(AttackInfo).GetField("subElementType",(System.Reflection.BindingFlags)(-1)))) && c.TryGotoNext(x => x.MatchSwitch(out _),x=> x.MatchBr(out _))){
+		if(c.TryGotoNext(x => x.MatchLdfld(typeof(AttackInfo).GetField("subElementType",(BindingFlags)(-1)))) && c.TryGotoNext(x => x.MatchSwitch(out _),x=> x.MatchBr(out _))){
 		  c.Emit(OpCodes.Ldarg_0);
 		  c.EmitDelegate<Action<Health>>((self) => {
 		    if(eleDict.ContainsKey(self.currentAtkInfo.subElementType))
@@ -288,7 +285,7 @@ namespace LegendAPI {
 	internal static bool HandleCustomStatus(Health caller,AttackInfo givenInfo,ElementType element,Entity atkEnt = null){
 		if(eleDict.ContainsKey(element) && eleDict[element].statusEffectType != null){
 		  ElementInfo eInfo = eleDict[element];
-		  float chance = Utility.GetExtraAttackInfo<float>(givenInfo,eInfo.statusEffectChanceString);
+		  float chance = Utility.GetExtraAttackInfo<List<float>>(givenInfo,eInfo.statusEffectChanceString).ElementAt(givenInfo.skillLevel);
 		  if( chance > 0f && chance * caller.statusResDict[element].CurrentValue > UnityEngine.Random.value){
 		    caller.entityScript.dotManager.AddDot((DoTEffect)Activator.CreateInstance(eInfo.statusEffectType, new object[] {givenInfo.skillCategory,givenInfo.skillLevel,caller.entityScript,atkEnt}));
 		    return true;
