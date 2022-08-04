@@ -51,6 +51,54 @@ namespace LegendAPI {
 		else
 		  LegendAPI.Logger.LogError("SetSkillData hook failed,skills will not associate with custom elements.");
 	   };
+           On.NewSpellHandler.ctor += (orig,self) => {
+               orig(self);
+               foreach(var element in eleDict.Keys.Where((key) => !eleDict[key].isSubElement && !self.elementUnlockCount.ContainsKey(key))){
+                   self.elementUnlockCount.Add(element,0);
+               }
+           };
+           IL.SpellBookUI.LoadEleSkillDict += (il) =>{ 
+		ILCursor c = new ILCursor(il);
+                if(c.TryGotoNext(x=>x.MatchLdarg(1),x=>x.MatchLdfld(typeof(Player).GetField("skillsDict")))){
+                    c.Emit(OpCodes.Ldarg_0);
+                    c.EmitDelegate<Action<SpellBookUI>>((self) =>{
+                      int indexCount = self.eleIndexDict.Count;
+                      self.eleIndexDict.Add(indexCount++,ElementType.Neutral);
+                      self.eleSpellDict.Add(ElementType.Neutral,new List<Player.SkillState>());
+                      self.eleOverdriveDict.Add(ElementType.Neutral,new List<Player.SkillState>());
+                      self.infoEleSkillTupleList.Add(new Tuple<ElementType,List<Player.SkillState>>(ElementType.Neutral,new List<Player.SkillState>()));
+                      foreach(var element in eleDict.Keys.Where((key) => !eleDict[key].isSubElement)){
+                        self.eleIndexDict.Add(indexCount++,element);
+                        self.eleSpellDict.Add(element,new List<Player.SkillState>());
+                        self.eleOverdriveDict.Add(element,new List<Player.SkillState>());
+                        self.infoEleSkillTupleList.Add(new Tuple<ElementType, List<Player.SkillState>>(element, new List<Player.SkillState>()));
+                      }
+                    });
+                }
+                else
+                 LegendAPI.Logger.LogError("LoadEleSkillDict hook failed,spellbook won't be able to show spells with custom elements");
+           };
+           On.SBCardInfoPageUI.InitMiniElementIndicator += (orig,self) =>{
+               orig(self);
+               foreach(var element in eleDict.Keys.Where((key) => !eleDict[key].isSubElement)){
+                   self.miniEleIconDict[element] = UnityEngine.Object.Instantiate(self.miniEleIconDict[ElementType.Fire],self.miniElementIcons);
+                   self.miniEleIconDict[element].GetComponent<UnityEngine.UI.Image>().sprite = eleDict[element].icon ?? IconManager.ItemIcons[IconManager.unavailableItemName]; 
+               }
+           };
+           On.SpellBookUI.SetObjectReferences += (orig,self) => {
+               self.maxOverdriveCount = (self.eleOverdriveDict?.Values.Aggregate(6,(longest,next) => next.Count > longest? next.Count : longest))??6;
+               orig(self); 
+               foreach(var element in eleDict.Keys.Where((key) => !eleDict[key].isSubElement)){
+                   self.sbRef.eleInkIconDict[element] = UnityEngine.Object.Instantiate(self.sbRef.eleInkIconDict[ElementType.Fire],self.sbRef.inkElementsObj.transform);
+                   self.sbRef.eleInkIconDict[element].GetComponent<UnityEngine.UI.Image>().sprite = eleDict[element].iconInk ?? IconManager.ItemIcons[IconManager.unavailableItemName]; 
+               }
+           };
+           On.ElementSelectionUI.Start += (orig,self) =>{
+               orig(self);
+               foreach(ElementInfo info in eleDict.Values.Where((info) => !self.elementSprites.ContainsKey(info.name))){
+                  self.elementSprites[info.name] = info.icon;
+               }
+           };
 	   On.ElementalResistanceUpOnHurt.ctor += (orig,self) => {
 	      orig(self);
 	      foreach(ElementType ele in eleDict.Keys){
@@ -176,8 +224,13 @@ namespace LegendAPI {
            IL.HealthProxy.GetElementalDamageModifier += ElementalDamageModifierProxy;
            new MonoMod.RuntimeDetour.Hook(typeof(Enum).GetMethod("ToString",System.Type.EmptyTypes),typeof(Elements).GetMethod("ToStringRedir",(BindingFlags)(-1)));
            new MonoMod.RuntimeDetour.Hook(typeof(Enum).GetMethod("Parse",new Type[]{typeof(Type),typeof(string)}),typeof(Elements).GetMethod("ParseRedir",(BindingFlags)(-1)));
+           new MonoMod.RuntimeDetour.Hook(typeof(SpellBookUI).GetProperty("MaxSpellPageCount",(BindingFlags)(-1)).GetGetMethod(true),typeof(Elements).GetMethod("SBPageCount"));
         }
 
+        public static int SBPageCount(Func<SpellBookUI,int> orig,SpellBookUI self){
+          _ = orig(self);
+          return (Player.elementSkillDict[self.currentElement].Count / SBSpellPageUI.MaxSpellCount);
+        }
         public static string ToStringRedir(Func<Enum,string> orig,Enum self){
            return ((self.GetType() == typeof(ElementType)) && eleDict.ContainsKey((ElementType)self))? eleDict[(ElementType)self].name : orig(self);
         }
@@ -201,6 +254,9 @@ namespace LegendAPI {
 		    return (ElementType)0;
 		  }
 		}
+                if(info.icon && !info.iconInk){
+                    info.iconInk = info.icon;
+                }
 		if(info.statusEffectType != null && info.statusEffectChanceString == null){
 		   info.statusEffectChanceString = info.name + "StatusChance";
 		}
@@ -304,7 +360,9 @@ namespace LegendAPI {
 	public string statusEffectChanceString = null;
 	public Type elementalBurstType = null;
         public Func<Vector2,System.Collections.IEnumerator> spawnDisaster = null;
-/*	public Type finalBossAttackStateType = null;
+        public Sprite icon = null;
+        public Sprite iconInk = null;
+        /*	public Type finalBossAttackStateType = null;
 	internal BossSkillState finalBossAttackState = null;
 	internal BossSkillState finalBossSuperState = null;
 	public Type finalBossSuperStateType = null;
