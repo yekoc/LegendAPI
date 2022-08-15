@@ -47,6 +47,7 @@ namespace LegendAPI {
             };
             On.OutfitModStat.GetDescription += CustomModDescription;
             On.OutfitModStat.SetModStatus += SetCustomStatus;
+            On.Outfit.HandleNOutfit += CustomShadowShade;
         }
         internal static void OutfitForSale(On.OutfitMerchantNpc.orig_CreateOutfitStoreItem orig, OutfitMerchantNpc self, Vector2 pos, string givenID) {
             if (givenID == String.Empty) {
@@ -103,7 +104,14 @@ namespace LegendAPI {
             else
                 return OutfitCatalog[givenID].name;
         }
-
+        internal static void CustomShadowShade(On.Outfit.orig_HandleNOutfit orig,string actualOutfit){
+            orig(actualOutfit);
+            foreach (OutfitModStat Mod in Outfit.normalOutfit.modList) {
+                if (!Mod.modType.Equals(CustomModType))
+                    continue;
+                Mod.modifierID = actualOutfit;
+            }
+        }
     }
     public class OutfitInfo {
         //public static int extra = 0;
