@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
 using MonoMod.RuntimeDetour;
+using MonoMod.Cil;
+using Mono.Cecil.Cil;
 
 namespace LegendAPI {
     public static class Items {
@@ -11,12 +13,18 @@ namespace LegendAPI {
         internal static Dictionary<string, string[]> RecipeCatalog = new Dictionary<string, string[]>();
         internal static Dictionary<string, List<string>> GroupCatalog = new Dictionary<string, List<string>>();
 	internal static bool enabled = true;
+        internal static bool hooked = false;
         public static void Awake() {
             On.GameController.Awake += (orig, self) => {
                 orig(self);
+                if(!hooked){
                 On.TextManager.GetItemName += CustomItemText;
                 On.LootManager.ResetAvailableItems += CatalogToDict;
                 On.IconManager.GetItemIcon += CustomItemIcon;
+                IL.RunHistoryEntryUI.Load += TrophyCaseUnknown;
+                IL.LootManager.GetLockedItemID += CustomItemUnlock;
+                hooked = true;
+                }
             };
         }
         public static void LateInit() {
@@ -42,10 +50,13 @@ namespace LegendAPI {
                 }
             }
 	}
-	else{	
+        else if(hooked){	
          On.TextManager.GetItemName -= CustomItemText;
          On.LootManager.ResetAvailableItems -= CatalogToDict;
          On.IconManager.GetItemIcon -= CustomItemIcon;
+         IL.RunHistoryEntryUI.Load -= TrophyCaseUnknown;
+         IL.LootManager.GetLockedItemID -= CustomItemUnlock;
+         hooked = false;
 	}
 	}
 
@@ -135,6 +146,34 @@ namespace LegendAPI {
 	   }
 	   return orig(givenID);
         }
+        private static void CustomItemUnlock(ILContext il){
+            ILCursor c = new ILCursor(il);
+            ILLabel lab = c.DefineLabel(),targetLab = c.DefineLabel();
+            c.MarkLabel(targetLab);
+            if(c.TryGotoNext( x => x.MatchBle(out lab))){
+                c.GotoLabel(lab);
+                c.MoveBeforeLabels();
+                c.Emit(OpCodes.Ldloc_0);
+                c.EmitDelegate<Func<string,bool>>((id) => !ItemCatalog.ContainsKey(id) || ItemCatalog[id].unlockCondition());
+                c.Emit(OpCodes.Brfalse,targetLab);
+            }
+            else{
+                LegendAPI.Logger.LogError("ILHook for GetLockedItemID failed.");
+            }
+        }
+        private static void TrophyCaseUnknown(ILContext il){
+           ILCursor c = new ILCursor(il);
+           ILLabel lab = c.DefineLabel();
+           if(c.TryGotoNext( x=> x.MatchLdsfld(typeof(LootManager).GetField("completeItemDict",(BindingFlags)(-1)))) && c.TryFindNext(out _, x => x.MatchBrfalse(out lab)) ){
+               c.Emit(OpCodes.Ldloc_2);
+               c.Emit(OpCodes.Ldarg_1);
+               c.EmitDelegate<Func<int,RunHistoryEntry,bool>>((orig,run) => LootManager.completeItemDict.ContainsKey(run.relicIDs[orig]));
+               c.Emit(OpCodes.Brfalse,lab);
+           }
+           else{
+             LegendAPI.Logger.LogError("ILHook for RunHistoryEntryUI failed.");
+           }
+        }
         /*	static public void Headgearify<T>(GameObject headgearPrefab){
               new Hook(typeof(T).GetMethod("Activate"),(Action orig,T self) =>{
                 orig(self);
@@ -164,6 +203,7 @@ namespace LegendAPI {
         public string group = null;
         public Sprite icon = null;
         public int priceMultiplier = -1;
+        public Func<bool> unlockCondition = () => { return true; };
         /*
               public static ItemInfo GetInfo(string givenID){
                 if(Items.ItemCatalog.ContainsKey(givenID))

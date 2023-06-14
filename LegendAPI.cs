@@ -4,7 +4,7 @@ using BepInEx.Logging;
 using On;
 
 namespace LegendAPI {
-    [BepInPlugin("xyz.yekoc.wizardoflegend.LegendAPI", "Wizard of Legend API", "1.2.1")]
+    [BepInPlugin("xyz.yekoc.wizardoflegend.LegendAPI", "Wizard of Legend API", "1.3.0")]
     public class LegendAPI : BaseUnityPlugin {
         internal new static ManualLogSource Logger { get; set; }
 	public void Awake() {

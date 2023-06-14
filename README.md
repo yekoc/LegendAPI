@@ -26,6 +26,7 @@ ItemInfo {
  string group; //The internal-id of any group items that this item might belong to.
  Sprite icon; // The inventory & world sprite for your item.
  int priceMultiplier; //The direct price multiplier of your item,set to 0 to make it free.
+ Func<bool> unlockCondition; //A function that takes nothing and returns a bool,this delegate will be called to decide whether the item is eligible for sale at the Plaza's Item Shop. It can either check another condition or return false for fully custom unlocks.
 }
 ```
 This data can then be passed to the API by calling `LegendAPI.Items.Register()`,any items that this one can combine into should be registered using `LegendAPI.Items.RegisterRecipe()`.\
@@ -92,6 +93,13 @@ Current Functionality Includes(but may not be limited to):\
 + `GetExtraAttackInfo()` for making use of the above.
 
 ## Changelog
+  **1.3.0**
+   * Fixed Trophy Case Error when trying to display items that no longer exist.
+   * Added conditional unlocks for items.
+  
+  **1.2.1**
+   * Fixed the vanilla secret cloak not inheriting custom outfit modifications
+
   **1.2.0**
    * Added Custom Element Support to the spellbok
    * Added Custom Soundtrack Support 
