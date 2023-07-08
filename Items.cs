@@ -14,6 +14,7 @@ namespace LegendAPI {
         internal static Dictionary<string, List<string>> GroupCatalog = new Dictionary<string, List<string>>();
 	internal static bool enabled = true;
         internal static bool hooked = false;
+        internal static bool init = false;
         public static void Awake() {
             On.GameController.Awake += (orig, self) => {
                 orig(self);
@@ -23,44 +24,57 @@ namespace LegendAPI {
                 On.IconManager.GetItemIcon += CustomItemIcon;
                 IL.RunHistoryEntryUI.Load += TrophyCaseUnknown;
                 IL.LootManager.GetLockedItemID += CustomItemUnlock;
+                IL.Inventory.AddItem_Item_bool_bool += GroupItemTrigger;
                 hooked = true;
+                init = true;
                 }
             };
         }
         public static void LateInit() {
-        if(enabled){
-	   foreach (string Result in RecipeCatalog.Keys) {
-                if (!ItemRecipe.recipes.ContainsKey(Result)) {
-                    ItemRecipe.recipes.Add(Result, RecipeCatalog[Result]);
+            if(ItemCatalog.Count == 0 && RecipeCatalog.Count == 0 && GroupCatalog.Count == 0){
+                    enabled = false;
+            }
+            if(enabled){
+               foreach (string Result in RecipeCatalog.Keys) {
+                    if (!ItemRecipe.recipes.ContainsKey(Result)) {
+                        ItemRecipe.recipes.Add(Result, RecipeCatalog[Result]);
+                    }
+                    else {
+                        ItemRecipe.recipes[Result] = RecipeCatalog[Result];
+                    }
                 }
-                else {
-                    ItemRecipe.recipes[Result] = RecipeCatalog[Result];
+                foreach (string Group in GroupCatalog.Keys) {
+                    if (!LootManager.completeItemDict.ContainsKey(Group)) {
+                        LegendAPI.Logger.LogError($"Group: {Group} has no GroupItem associated,skipping.");
+                        continue;
+                    }
+                    if (!GroupItemManager.groupsDict.ContainsKey(Group)) {
+                        GroupItemManager.groupsDict.Add(Group, GroupCatalog[Group]);
+                    }
+                    else {
+                        GroupItemManager.groupsDict[Group].AddRange(GroupCatalog[Group]);
+                    }
                 }
             }
-            foreach (string Group in GroupCatalog.Keys) {
-                if (!LootManager.completeItemDict.ContainsKey(Group)) {
-                    LegendAPI.Logger.LogError($"Group: {Group} has no GroupItem associated,skipping.");
-                    continue;
-                }
-                if (!GroupItemManager.groupsDict.ContainsKey(Group)) {
-                    GroupItemManager.groupsDict.Add(Group, GroupCatalog[Group]);
-                }
-                else {
-                    GroupItemManager.groupsDict[Group] = GroupCatalog[Group];
-                }
+            else if(hooked){	
+             On.TextManager.GetItemName -= CustomItemText;
+             On.LootManager.ResetAvailableItems -= CatalogToDict;
+             On.IconManager.GetItemIcon -= CustomItemIcon;
+             IL.LootManager.GetLockedItemID -= CustomItemUnlock;
+             hooked = false;
             }
-	}
-        else if(hooked){	
-         On.TextManager.GetItemName -= CustomItemText;
-         On.LootManager.ResetAvailableItems -= CatalogToDict;
-         On.IconManager.GetItemIcon -= CustomItemIcon;
-         IL.RunHistoryEntryUI.Load -= TrophyCaseUnknown;
-         IL.LootManager.GetLockedItemID -= CustomItemUnlock;
-         hooked = false;
-	}
 	}
 
         public static void Register(ItemInfo Info) {
+            if(!enabled && init){ 
+                if(!hooked){
+                On.TextManager.GetItemName += CustomItemText;
+                On.LootManager.ResetAvailableItems += CatalogToDict;
+                On.IconManager.GetItemIcon += CustomItemIcon;
+                IL.LootManager.GetLockedItemID += CustomItemUnlock;
+                hooked = true;
+                }
+            }
             if (Info.text.Equals(default(global::TextManager.ItemInfo))) {
                 Info.text = new global::TextManager.ItemInfo();
                 Info.text.displayName = Info.name;
@@ -74,9 +88,13 @@ namespace LegendAPI {
                 ItemCatalog[Info.item.ID] = Info;
             }
             if (Info.group != null) {
-                if (!GroupCatalog.ContainsKey(Info.group))
+                if (!GroupCatalog.ContainsKey(Info.group)){
                     GroupCatalog.Add(Info.group, new List<string>());
+                }
                 GroupCatalog[Info.group].Add(Info.item.ID);
+                if(Info.item.parentGroupID == null || Info.item.parentGroupID == String.Empty){
+                    Info.item.parentGroupID = Info.group;
+                }
             }
         }
         public static void Register(Item item) {
@@ -97,6 +115,13 @@ namespace LegendAPI {
             }
         }
 
+        private static void GroupItemTrigger(ILContext il){
+            ILCursor c = new ILCursor(il);
+            if(c.TryGotoNext(MoveType.After,x => x.MatchCallOrCallvirt(typeof(Item).GetMethod("Activate")))){
+              c.Emit(OpCodes.Ldarg_1);
+              c.EmitDelegate<Action<Item>>((item) => item.GroupItemCreated(item.parentGroupID));
+            }
+        }
         private static void CatalogToDict(On.LootManager.orig_ResetAvailableItems orig) {
             foreach (ItemInfo Info in ItemCatalog.Values) {
                 if (!LootManager.completeItemDict.ContainsKey(Info.item.ID)) {

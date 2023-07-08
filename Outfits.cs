@@ -34,7 +34,6 @@ namespace LegendAPI {
 
         public static Dictionary<string, OutfitInfo> OutfitCatalog = new Dictionary<string, OutfitInfo>();
         internal static List<string> Aisle = new List<string>();
-        internal static bool enabled = true;
 	public static OutfitModStat.OutfitModType CustomModType = (OutfitModStat.OutfitModType)20;
         static public void Awake() {
             On.Outfit.UpdateOutfitDictData += CatalogToDict;

@@ -339,9 +339,13 @@ namespace LegendAPI {
 		}
 	}
 	internal static bool HandleCustomStatus(Health caller,AttackInfo givenInfo,ElementType element,Entity atkEnt = null){
-		if(eleDict.ContainsKey(element) && eleDict[element].statusEffectType != null){
+		if(givenInfo.skillLevel >= 0 && eleDict.ContainsKey(element) && eleDict[element].statusEffectType != null){
 		  ElementInfo eInfo = eleDict[element];
-		  float chance = Utility.GetExtraAttackInfo<List<float>>(givenInfo,eInfo.statusEffectChanceString).ElementAt(givenInfo.skillLevel);
+		  var extinfo = Utility.GetExtraAttackInfo<List<float>>(givenInfo,eInfo.statusEffectChanceString);
+                  if(extinfo == null || extinfo.Count <= givenInfo.skillLevel){
+                    return false;
+                  }
+                  float chance = extinfo.ElementAt(givenInfo.skillLevel);
 		  if( chance > 0f && chance * caller.statusResDict[element].CurrentValue > UnityEngine.Random.value){
 		    caller.entityScript.dotManager.AddDot((DoTEffect)Activator.CreateInstance(eInfo.statusEffectType, new object[] {givenInfo.skillCategory,givenInfo.skillLevel,caller.entityScript,atkEnt}));
 		    return true;
