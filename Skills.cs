@@ -26,6 +26,7 @@ namespace LegendAPI {
                  On.CooldownEntry.SetSkillBGSprite += SetBGSprite;
                  On.SpellBookUI.AddSkillToInfoSkills += HiddenInfoSkill;
                  IL.SpellBookUI.LoadInfoPage += HiddenInfoIndex;
+                 IL.SpellBookUI.LoadEleSkillDict += HiddenSpellPage;
                  IL.LoadoutUI.UpdateEntry += CameraBGSprite;
                  IL.LoadoutUI.UpdateCurrentLoadout += CameraBGSprite;
                  hooked = true;
@@ -43,6 +44,7 @@ namespace LegendAPI {
              On.CooldownEntry.SetSkillBGSprite -= SetBGSprite;
              On.SpellBookUI.AddSkillToInfoSkills -= HiddenInfoSkill;
              IL.SpellBookUI.LoadInfoPage -= HiddenInfoIndex;
+             IL.SpellBookUI.LoadEleSkillDict -= HiddenSpellPage;
              IL.LoadoutUI.UpdateEntry += CameraBGSprite;
              IL.LoadoutUI.UpdateCurrentLoadout += CameraBGSprite;
              hooked = false;
@@ -85,6 +87,15 @@ namespace LegendAPI {
             ILCursor c = new ILCursor(il);
             if(c.TryGotoNext(MoveType.After,x => x.MatchCallOrCallvirt(typeof(List<Player.SkillState>).GetMethod("IndexOf",new Type[]{typeof(Player.SkillState)})))){
                c.EmitDelegate<Func<int,int>>((orig) => orig < 0 ? 0 : orig);
+            }
+        }
+        private static void HiddenSpellPage(ILContext il){
+            ILCursor c = new ILCursor(il);
+            var indexindex = -1;
+            if(c.TryGotoNext(MoveType.After,x => x.MatchLdloc(out indexindex),x=>x.MatchLdfld(typeof(Player.SkillState).GetField("isUnlocked")))){
+                c.Emit(OpCodes.Ldloc,indexindex);
+                c.EmitDelegate<Func<Player.SkillState,bool>>((state) => !SkillCatalog.ContainsKey(state.skillID) || !SkillCatalog[state.skillID].hidden);
+                c.Emit(OpCodes.And);
             }
         }
         private static void CatalogToDict(On.LootManager.orig_ResetAvailableSkills orig) {
@@ -143,6 +154,11 @@ namespace LegendAPI {
                 else{
                   player.fsm.states[stat.name] = stat;
                 }
+               if(stat.element == ElementType.Chaos && !info.hidden){
+                   if(!LootManager.chaosSkillList.Contains(info.ID)){
+                     LootManager.chaosSkillList.Add(info.ID);
+                   }
+               }
              }});
            }
         }

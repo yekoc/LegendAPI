@@ -129,6 +129,16 @@ Current Functionality Includes(but may not be limited to):\
 
 
 ## Changelog
+  **1.4.2**
+   * Added hook logging
+   * Fixed Element Status NRE on partially-specified attacks.
+   * Non-hidden Chaos Arcana are now automatically added to the vanilla unlock mechanism.
+   * Fixed hidden arcana showing up in (and being equipable from) the full spell list.
+
+  **Manifest Update/1.4.1**
+   * Updated thunderstore manifest for dependency packages.
+   * Package contents are the same as 1.4.0
+
   **1.4.0**
    * Added Skills module.
    * Added Utility functions for extra skill data.

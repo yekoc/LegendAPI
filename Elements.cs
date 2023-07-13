@@ -176,6 +176,9 @@ namespace LegendAPI {
 	   };
 	   IL.Health.TakeDamage += HookTakeDamage;
 	   Health.globalTakeDamageActualHandlers += (AttackInfo givenInfo,Entity atkEnt,Entity caller) => {
+                if(givenInfo == null || !caller){
+                   return;
+                }
 		if(eleDict.ContainsKey(givenInfo.elementType) && HandleCustomStatus(caller.health,givenInfo,givenInfo.elementType,atkEnt))
 		  caller.health.statusElementType = givenInfo.elementType;
 		foreach(ElementType element in eleDict.Keys){
