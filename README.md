@@ -132,6 +132,7 @@ Current Functionality Includes(but may not be limited to):\
   **1.4.2**
    * Added hook logging
    * Fixed Element Status NRE on partially-specified attacks.
+   * Fixed Custom Arcana Unlocks not working at all.(Whoops)
    * Non-hidden Chaos Arcana are now automatically added to the vanilla unlock mechanism.
    * Fixed hidden arcana showing up in (and being equipable from) the full spell list.
 

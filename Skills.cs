@@ -29,6 +29,7 @@ namespace LegendAPI {
                  IL.SpellBookUI.LoadEleSkillDict += HiddenSpellPage;
                  IL.LoadoutUI.UpdateEntry += CameraBGSprite;
                  IL.LoadoutUI.UpdateCurrentLoadout += CameraBGSprite;
+                 On.LootManager.GetSkillID += SkillUnlockCondition;
                  hooked = true;
                  init = true;
                 }
@@ -47,6 +48,7 @@ namespace LegendAPI {
              IL.SpellBookUI.LoadEleSkillDict -= HiddenSpellPage;
              IL.LoadoutUI.UpdateEntry += CameraBGSprite;
              IL.LoadoutUI.UpdateCurrentLoadout += CameraBGSprite;
+             On.LootManager.GetSkillID -= SkillUnlockCondition;
              hooked = false;
             }
 	}
@@ -57,11 +59,13 @@ namespace LegendAPI {
              IL.RunHistoryEntryUI.Load += TrophyCase;
              IL.Player.InitFSM += CatalogToFSM;
              On.StatManager.LoadPlayerSkills += CatalogToStats;
-             On.CooldownEntry.SetSkillBGSprite += SetBGSprite; 
+             On.CooldownEntry.SetSkillBGSprite += SetBGSprite;
              On.SpellBookUI.AddSkillToInfoSkills += HiddenInfoSkill;
              IL.SpellBookUI.LoadInfoPage += HiddenInfoIndex;
+             IL.SpellBookUI.LoadEleSkillDict += HiddenSpellPage;
              IL.LoadoutUI.UpdateEntry += CameraBGSprite;
              IL.LoadoutUI.UpdateCurrentLoadout += CameraBGSprite;
+             On.LootManager.GetSkillID += SkillUnlockCondition;
             }
             SkillCatalog.Add(info.ID,info);
         }
@@ -191,13 +195,7 @@ namespace LegendAPI {
         }
         private static string SkillUnlockCondition(On.LootManager.orig_GetSkillID orig,bool locked,bool sig){
             var text = orig(locked,sig);
-            while( SkillCatalog.ContainsKey(text) &&  !SkillCatalog[text].unlockCondition() ){
-              if(sig){
-                 LootManager.lockedSigList.Add(text);
-              }
-              if(locked){
-                 LootManager.lockedSkillList.Add(text);
-              }
+            while(text != String.Empty && SkillCatalog.ContainsKey(text) &&  (!SkillCatalog[text].unlockCondition() || SkillCatalog[text].hidden) ){
               text = orig(locked,sig);
             }
             return text;
@@ -236,11 +234,16 @@ namespace LegendAPI {
         public int tier = 0;
         public Type stateType;
         public SkillStats skillStats;
-        public Func<bool> unlockCondition = () => true;
+        public Func<bool> unlockCondition;
         public bool hidden = false;
         public int priceMultiplier = -1;
         public Sprite bgSpriteIcon = null;
         public Sprite bgSpriteFull = null;
+
+        public SkillInfo(){
+          //This needs to be here because the compiler is really mad about it being an initializer for no meaningful reason.
+          unlockCondition = () => skillStats.elementType[0] != "Chaos";
+        }
     }
     public class SkillStatsInfo{
        public string ID = "unnamedarcanaCHANGETHIS";
