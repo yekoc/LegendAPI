@@ -18,7 +18,7 @@ namespace LegendAPI {
         public static void Awake() {
             On.GameController.Awake += (orig, self) => {
                 orig(self);
-                if(!hooked){
+                if(!hooked && !init){
                  On.LootManager.ResetAvailableSkills += CatalogToDict;
                  IL.RunHistoryEntryUI.Load += TrophyCase;
                  IL.Player.InitFSM += CatalogToFSM;

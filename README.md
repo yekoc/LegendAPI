@@ -129,6 +129,10 @@ Current Functionality Includes(but may not be limited to):\
 
 
 ## Changelog
+  **1.4.3**
+   * Improved Hook Logging
+   * Fixed Erroneous Re-application of logs.
+
   **1.4.2**
    * Added hook logging
    * Fixed Element Status NRE on partially-specified attacks.

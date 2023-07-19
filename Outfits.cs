@@ -35,6 +35,7 @@ namespace LegendAPI {
         public static Dictionary<string, OutfitInfo> OutfitCatalog = new Dictionary<string, OutfitInfo>();
         internal static List<string> Aisle = new List<string>();
 	public static OutfitModStat.OutfitModType CustomModType = (OutfitModStat.OutfitModType)20;
+        public static bool init = false;
         static public void Awake() {
             On.Outfit.UpdateOutfitDictData += CatalogToDict;
             On.OutfitMerchantNpc.CreateOutfitStoreItem += OutfitForSale;
@@ -42,7 +43,11 @@ namespace LegendAPI {
             On.OutfitMerchantNpc.LoadOutfitItems += (orig, self) => { orig(self); Aisle.Clear(); };
             On.GameController.Awake += (orig, self) => {
                 orig(self);
-                On.TextManager.GetOutfitName += CustomOutfitText;
+                if(!init){
+                 On.TextManager.GetOutfitName += CustomOutfitText;
+                 IL.TailorNpc.UpgradePlayerOutfit += EarlyUpgrade;
+                 init = true;
+                }
             };
             On.OutfitModStat.GetDescription += CustomModDescription;
             On.OutfitModStat.SetModStatus += SetCustomStatus;
