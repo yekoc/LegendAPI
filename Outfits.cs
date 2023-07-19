@@ -72,11 +72,27 @@ namespace LegendAPI {
             orig(self, pos, givenID);
         }
         internal static void SetCustomStatus(On.OutfitModStat.orig_SetModStatus orig, OutfitModStat self, Player givenPlayer, bool givenStatus, bool allowUpdate) {
-            if (self.modType == CustomModType && OutfitCatalog.ContainsKey(self.modifierID)) {
+            if (self.modType == CustomModType && OutfitCatalog.ContainsKey(self.modifierID)){
                 OutfitCatalog[self.modifierID].customMod(givenPlayer, givenStatus, allowUpdate);
-                return;
             }
             orig(self, givenPlayer, givenStatus, allowUpdate);
+        }
+        internal static void EarlyUpgrade(ILContext il){
+            var c = new ILCursor(il);
+            if(c.TryGotoNext(MoveType.After,x => x.MatchStfld(typeof(TailorNpc).GetField("currentMod",(System.Reflection.BindingFlags)(-1))), x=> x.MatchLdarg(out _),x=> x.MatchLdfld(out _))){
+              c.Emit(OpCodes.Ldarg_0);
+              c.Emit(OpCodes.Ldfld,typeof(TailorNpc).GetField("currentOutfit",(System.Reflection.BindingFlags)(-1)));
+              c.EmitDelegate<Func<OutfitModStat,Outfit,OutfitModStat>>((mod,outfit) =>{
+                if(mod.modType == CustomModType && (mod.modifierID == null || mod.modifierID == String.Empty)){
+                   LegendAPI.Logger.LogDebug("Fixing broken modifierID");
+                   mod.modifierID = outfit.outfitID;
+                }
+                return mod;
+              });
+            }
+            if(c.TryGotoNext(x => x.MatchLdcI4(1),x => x.MatchCallOrCallvirt(typeof(Outfit).GetMethod("SetEquipStatus")))){
+               c.EmitDelegate<Func<Player,Player>>((p) => {p.outfitEnhanced = true; return p;});
+            }
         }
         internal static string CustomModDescription(On.OutfitModStat.orig_GetDescription orig, OutfitModStat self, bool addExtra) {
             if (self.modType == CustomModType && OutfitCatalog.ContainsKey(self.modifierID))

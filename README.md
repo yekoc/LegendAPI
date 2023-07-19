@@ -132,6 +132,7 @@ Current Functionality Includes(but may not be limited to):\
   **1.4.3**
    * Improved Hook Logging
    * Fixed Erroneous Re-application of logs.
+   * Fixed Upgrading of custom outfit effects.
 
   **1.4.2**
    * Added hook logging
