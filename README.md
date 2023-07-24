@@ -40,8 +40,8 @@ OutfitInfo {
  Outfit outfit; //The outfit instance you created,note the requirement of a CustomModType entry mentioned above.
  string name; //The display name of the outfit.
  Func<bool> unlockCondition; //A function that takes nothing and returns a bool,provided that the outfit isn't unlocked by default(a field in the Outfit class),this delegate will be called to decide whether the player has earned the outfit.
- Action<Player, bool, bool> customMod; //The Custom Modifier,this is the workhorse that weaves your custom outfit effects into being,this delegate takes,in order,the player in question,whether the effect is being turned on or off and if it's being called due to a change in outfits or otherwise.
- Func<bool, string> customDesc; //The display description of the outfit's abilities,it is provided as a delegate to take advantage of live shifts in values,the input of the delegate refers to whether it's being displayed in a context where providing stat numbers is appropriate
+ Action<Player, bool, bool, OutfitModStat> customMod; //The Custom Modifier,this is the workhorse that weaves your custom outfit effects into being,this delegate takes,in order,the player in question,whether the effect is being turned on or off ,if it's being called due to a change in outfits or otherwise and the outfitmodstat instace being activated.
+ Func<bool, OutfitModStat, string> customDesc; //The display description of the outfit's abilities,it is provided as a delegate to take advantage of live shifts in values,the input of the delegate refers to whether it's being displayed in a context where providing stat numbers is appropriate as well as the outfitmodstat instance used.
 }
 ```
 This data can then be passed to the API by calling `LegendAPI.Outfits.Register()`.\
@@ -129,6 +129,16 @@ Current Functionality Includes(but may not be limited to):\
 
 
 ## Changelog
+
+  **2.0.0**
+   * BREAKING CHANGE
+   * Outfit custom mods and their descriptions now have access to their OutfitModStat instance.
+     - This allows them to refer to the modifiers stored in the OutfitModStat to describe,display,or modify stats.
+     - `OutfitModStat.statDictKey` can be set WHILE CREATING THE OUTFIT,to modify the given skill stat,including extra stats from the Skills module.
+     - `OutfitModStat.targetNumStatList` and `OutfitModStat.targetBoolStatList` can be used INSIDE THE CUSTOM MOD DELEGATE to specify stats that the modifiers apply.
+     - Old custom mods should still work without issue once their method signature is corrected to fit the new delegate types.
+   * Misc bugfixes (including upgraded custom mods while wearing Shadow).
+
   **1.4.3**
    * Improved Hook Logging
    * Fixed Erroneous Re-application of logs.

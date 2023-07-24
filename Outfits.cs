@@ -36,6 +36,7 @@ namespace LegendAPI {
         internal static List<string> Aisle = new List<string>();
 	public static OutfitModStat.OutfitModType CustomModType = (OutfitModStat.OutfitModType)20;
         public static bool init = false;
+        public static string upgradeShadowFix = String.Empty;
         static public void Awake() {
             On.Outfit.UpdateOutfitDictData += CatalogToDict;
             On.OutfitMerchantNpc.CreateOutfitStoreItem += OutfitForSale;
@@ -50,7 +51,7 @@ namespace LegendAPI {
                 }
             };
             On.OutfitModStat.GetDescription += CustomModDescription;
-            On.OutfitModStat.SetModStatus += SetCustomStatus;
+            IL.OutfitModStat.SetModStatus += SetCustomStatus;
             On.Outfit.HandleNOutfit += CustomShadowShade;
         }
         internal static void OutfitForSale(On.OutfitMerchantNpc.orig_CreateOutfitStoreItem orig, OutfitMerchantNpc self, Vector2 pos, string givenID) {
@@ -71,11 +72,19 @@ namespace LegendAPI {
             }
             orig(self, pos, givenID);
         }
-        internal static void SetCustomStatus(On.OutfitModStat.orig_SetModStatus orig, OutfitModStat self, Player givenPlayer, bool givenStatus, bool allowUpdate) {
-            if (self.modType == CustomModType && OutfitCatalog.ContainsKey(self.modifierID)){
-                OutfitCatalog[self.modifierID].customMod(givenPlayer, givenStatus, allowUpdate);
+        internal static void SetCustomStatus(ILContext il) {
+            ILCursor c = new ILCursor(il);
+            if(c.TryGotoNext(MoveType.After,x => x.MatchCallOrCallvirt(typeof(OutfitModStat).GetMethod(nameof(OutfitModStat.SetTargetVarStatList),(System.Reflection.BindingFlags)(-1))))){
+              c.Emit(OpCodes.Ldarg_0);
+              c.Emit(OpCodes.Ldarg_1);
+              c.Emit(OpCodes.Ldarg_2);
+              c.Emit(OpCodes.Ldarg_3);
+              c.EmitDelegate<Action<OutfitModStat,Player,bool,bool>>((modifier,player,status,update) => {
+                 if(OutfitCatalog.ContainsKey(modifier.modifierID)){
+                   OutfitCatalog[modifier.modifierID].customMod(player,status,update,modifier);
+                 }
+              });
             }
-            orig(self, givenPlayer, givenStatus, allowUpdate);
         }
         internal static void EarlyUpgrade(ILContext il){
             var c = new ILCursor(il);
@@ -85,7 +94,7 @@ namespace LegendAPI {
               c.EmitDelegate<Func<OutfitModStat,Outfit,OutfitModStat>>((mod,outfit) =>{
                 if(mod.modType == CustomModType && (mod.modifierID == null || mod.modifierID == String.Empty)){
                    LegendAPI.Logger.LogDebug("Fixing broken modifierID");
-                   mod.modifierID = outfit.outfitID;
+                   mod.modifierID = (outfit.outfitID == Outfit.normalID) ? upgradeShadowFix : outfit.outfitID;
                 }
                 return mod;
               });
@@ -95,9 +104,10 @@ namespace LegendAPI {
             }
         }
         internal static string CustomModDescription(On.OutfitModStat.orig_GetDescription orig, OutfitModStat self, bool addExtra) {
+            var result = orig(self,addExtra);
             if (self.modType == CustomModType && OutfitCatalog.ContainsKey(self.modifierID))
-                return OutfitCatalog[self.modifierID].customDesc(addExtra);
-            return orig(self, addExtra);
+                result = OutfitCatalog[self.modifierID].customDesc(addExtra,self);// + (((!addExtra) || !(self.hasAddValue || self.hasMultiValue || self.hasOverrideValue) )? string.Empty : (" <color=#009999>( </color><color=#00dddd>" + (self.hasAddValue ? Globals.PercentToStr(self.addModifier, (!self.isIncrease) ? "-" : "+") : (self.hasMultiValue ? Globals.PercentToStr(self.multiModifier, (!self.isIncrease) ? "-" : "+") : ((!self.hasOverrideValue) ? string.Empty : ((int)self.overrideModifier.modValue).ToString()))) + "</color><color=#009999> )</color>"));
+            return result;
 
         }
         internal static bool CustomCondition(On.OutfitMerchantNpc.orig_ConditionalRequirementMet orig, OutfitMerchantNpc self, string givenName) {
@@ -130,6 +140,7 @@ namespace LegendAPI {
                 if (!Mod.modType.Equals(CustomModType))
                     continue;
                 Mod.modifierID = actualOutfit;
+                upgradeShadowFix = actualOutfit;
             }
         }
     }
@@ -138,7 +149,7 @@ namespace LegendAPI {
         public Outfit outfit = new Outfit("newHope", Outfit.baseHope.outfitColorIndex, new List<OutfitModStat>());
         public string name = "UNNAMED";
         public Func<bool> unlockCondition = () => { return true; };
-        public Action<Player, bool, bool> customMod = (p, b1, b2) => { return; };
-        public Func<bool, string> customDesc = (b) => { return ""; };
+        public Action<Player, bool, bool,OutfitModStat> customMod = (p, b1, b2,modifier) => { return; };
+        public Func<bool,OutfitModStat,string> customDesc = (addExtra,modifier) => { return ""; };
     }
 }
