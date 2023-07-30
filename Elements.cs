@@ -291,6 +291,7 @@ namespace LegendAPI {
 		ILCursor c = new ILCursor(il);
 		ILLabel lab = c.DefineLabel();
 		if(c.TryGotoNext(MoveType.After,x=>x.MatchStfld(typeof(HealthProxy).GetField(nameof(HealthProxy.eleDmgMulti),(BindingFlags)(-1))),x=>x.MatchBr(out lab))){
+                   c.MoveAfterLabels();
 		   c.Emit(OpCodes.Ldarg_0);
 		   c.Emit(OpCodes.Ldarg_1);
 		   c.EmitDelegate<Func<HealthProxy,ElementType,bool>>((self,element) =>{
@@ -313,6 +314,7 @@ namespace LegendAPI {
 		ILCursor c = new ILCursor(il);
 		ILLabel lab = c.DefineLabel();
 		if(c.TryGotoNext(MoveType.After,x=>x.MatchStfld(typeof(Health).GetField(nameof(Health.eleDmgModVal),(BindingFlags)(-1))),x=>x.MatchBr(out lab))){
+                   c.MoveAfterLabels();
 		   c.Emit(OpCodes.Ldarg_0);
 		   c.Emit(OpCodes.Ldarg_1);
 		   c.EmitDelegate<Func<Health,ElementType,bool>>((self,element) =>{

@@ -136,11 +136,13 @@ namespace LegendAPI {
         }
         internal static void CustomShadowShade(On.Outfit.orig_HandleNOutfit orig,string actualOutfit){
             orig(actualOutfit);
-            foreach (OutfitModStat Mod in Outfit.normalOutfit.modList) {
-                if (!Mod.modType.Equals(CustomModType))
-                    continue;
-                Mod.modifierID = actualOutfit;
-                upgradeShadowFix = actualOutfit;
+            if(actualOutfit != Outfit.normalID){
+             foreach (OutfitModStat Mod in Outfit.normalOutfit.modList) {
+                 if (!Mod.modType.Equals(CustomModType))
+                     continue;
+                 Mod.modifierID = actualOutfit;
+                 upgradeShadowFix = actualOutfit;
+             }
             }
         }
     }
