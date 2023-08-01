@@ -36,7 +36,7 @@ namespace LegendAPI {
         internal static List<string> Aisle = new List<string>();
 	public static OutfitModStat.OutfitModType CustomModType = (OutfitModStat.OutfitModType)20;
         public static bool init = false;
-        public static string upgradeShadowFix = String.Empty;
+        public static string shadowSource = String.Empty;
         static public void Awake() {
             On.Outfit.UpdateOutfitDictData += CatalogToDict;
             On.OutfitMerchantNpc.CreateOutfitStoreItem += OutfitForSale;
@@ -94,7 +94,7 @@ namespace LegendAPI {
               c.EmitDelegate<Func<OutfitModStat,Outfit,OutfitModStat>>((mod,outfit) =>{
                 if(mod.modType == CustomModType && (mod.modifierID == null || mod.modifierID == String.Empty)){
                    LegendAPI.Logger.LogDebug("Fixing broken modifierID");
-                   mod.modifierID = (outfit.outfitID == Outfit.normalID) ? upgradeShadowFix : outfit.outfitID;
+                   mod.modifierID = (outfit.outfitID == Outfit.normalID) ? shadowSource : outfit.outfitID;
                 }
                 return mod;
               });
@@ -136,12 +136,12 @@ namespace LegendAPI {
         }
         internal static void CustomShadowShade(On.Outfit.orig_HandleNOutfit orig,string actualOutfit){
             orig(actualOutfit);
-            if(actualOutfit != Outfit.normalID){
+            if(actualOutfit != Outfit.normalID && actualOutfit != "default"){
+             shadowSource = actualOutfit;
              foreach (OutfitModStat Mod in Outfit.normalOutfit.modList) {
                  if (!Mod.modType.Equals(CustomModType))
                      continue;
                  Mod.modifierID = actualOutfit;
-                 upgradeShadowFix = actualOutfit;
              }
             }
         }

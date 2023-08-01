@@ -130,6 +130,10 @@ Current Functionality Includes(but may not be limited to):\
 
 ## Changelog
 
+  **2.1.0**
+   * Yet Another Vanilla Secret Cloak Fix.
+   * You can now access the source cloak for the Vanilla Secret Cloak through `LegendAPI.Outfits.shadowSource`
+
   **2.0.0**
    * BREAKING CHANGE
    * Outfit custom mods and their descriptions now have access to their OutfitModStat instance.
