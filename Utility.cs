@@ -113,7 +113,10 @@ namespace LegendAPI {
 	}
         public static bool IsUsingCustomMod(Player player,string checkID){
             var curOutf = Outfit.GetAvailableOutfit(player?.outfitID);
-            foreach(var mod in curOutf?.modList){
+            if(curOutf == null){
+                return false;
+            }
+            foreach(var mod in curOutf.modList){
                 if(mod.modType == Outfits.CustomModType && mod.modifierID == checkID){
                     return true;
                 }

@@ -132,6 +132,9 @@ Current Functionality Includes(but may not be limited to):\
 
 ## Changelog
 
+  **2.2.1**
+   * Fixed an edge case in multiplayer that could cause a freeze when spawning in with certain outfits.
+  
   **2.2.0**
    * Outfit change event for custom outfit mods now fires when exiting to menu, to ensure cleanup.
      - To be more specific, it fires when the player gets destroyed.
