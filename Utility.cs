@@ -111,6 +111,15 @@ namespace LegendAPI {
 		    extraInfoSKL.Remove(item.Key);
 		}
 	}
+        public static bool IsUsingCustomMod(Player player,string checkID){
+            var curOutf = Outfit.GetAvailableOutfit(player?.outfitID);
+            foreach(var mod in curOutf?.modList){
+                if(mod.modType == Outfits.CustomModType && mod.modifierID == checkID){
+                    return true;
+                }
+            }
+            return false;
+        }
 
         internal class WeakRefHandle<T>{
             //We mourn the non-existance of ConditionalWeakTable in net 3.5

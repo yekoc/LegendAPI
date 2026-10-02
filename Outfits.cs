@@ -13,12 +13,16 @@ namespace LegendAPI {
 
         public static void Register(OutfitInfo info) {
             foreach (OutfitModStat Mod in info.outfit.modList) {
-                if (!Mod.modType.Equals(CustomModType))
-                    continue;
-                Mod.modifierID = info.outfit.outfitID;
+                if (Mod.modType.Equals(CustomModType)){
+                    Mod.modifierID = info.outfit.outfitID;
+                }
+                else if(Mod.modType.Equals(CopyCatModType)){
+                    Mod.modifierID = info.outfit.outfitID;
+                    CopycatCatalog.Add(info.outfit.outfitID,info.outfit);
+                }
             }
             if (!OutfitCatalog.ContainsKey(info.outfit.outfitID)) {
-                OutfitCatalog.Add(info.outfit.outfitID, info);
+                OutfitCatalog.Add(info.outfit.outfitID,info);
             }
             else {
                 OutfitCatalog[info.outfit.outfitID] = info;
@@ -33,8 +37,10 @@ namespace LegendAPI {
 
 
         public static Dictionary<string, OutfitInfo> OutfitCatalog = new Dictionary<string, OutfitInfo>();
+        private static Dictionary<string, Outfit> CopycatCatalog = new Dictionary<string, Outfit>();
         internal static List<string> Aisle = new List<string>();
 	public static OutfitModStat.OutfitModType CustomModType = (OutfitModStat.OutfitModType)20;
+        public static OutfitModStat.OutfitModType CopyCatModType = (OutfitModStat.OutfitModType)21;
         public static bool init = false;
         public static string shadowSource = String.Empty;
         static public void Awake() {
@@ -53,6 +59,45 @@ namespace LegendAPI {
             On.OutfitModStat.GetDescription += CustomModDescription;
             IL.OutfitModStat.SetModStatus += SetCustomStatus;
             On.Outfit.HandleNOutfit += CustomShadowShade;
+            On.Player.OnDestroy += (orig,self) =>{
+                foreach(var mod in Outfit.OutfitDict[self.outfitID].modList){
+                    if(mod.modType == CustomModType && OutfitCatalog.ContainsKey(mod.modifierID)){
+                        OutfitCatalog[mod.modifierID].customMod(self,false,true,mod);
+                    }
+                } 
+                orig(self);
+            };
+            On.Outfit.GetDescription += (orig,self,bol) =>{
+                var res = orig(self,bol);
+                return System.Text.RegularExpressions.Regex.Replace(res,"^(?:[\t ]*(?:\r?\n|\r))+",String.Empty);
+            };
+            IL.Player.EquipOutfit += HandleCopycat;
+        }
+        internal static void HandleCopycat(ILContext il){
+            ILCursor c = new ILCursor(il);
+            if(c.TryGotoNext(MoveType.After,x=>x.MatchLdcI4(0),x=>x.MatchRet())){
+                c.MoveAfterLabels();
+                c.Emit(OpCodes.Ldarg_0);
+                c.Emit(OpCodes.Ldarg_1);
+                c.EmitDelegate<Action<Player,string>>((player,outfitID) =>{
+                    if(CopycatCatalog.ContainsKey(outfitID) && player.outfitID != outfitID){
+                        var outf = new Outfit(CopycatCatalog[outfitID]);
+                        for(int i = 0 ; i < outf.modList.Count;i++){
+                            outf.modList[i].modifierID = CopycatCatalog[outfitID].modList[i].modifierID;
+                        }
+                        OutfitCatalog[outfitID].outfit = outf;
+                        Outfit.outfitDict[outfitID] = outf;
+                    }
+                    if(CopycatCatalog.ContainsKey(player.outfitID) && player.outfitID != outfitID){
+                        var outf = new Outfit(CopycatCatalog[player.outfitID]);
+                        for(int i = 0 ; i < outf.modList.Count;i++){
+                            outf.modList[i].modifierID = CopycatCatalog[player.outfitID].modList[i].modifierID;
+                        }
+                        OutfitCatalog[player.outfitID].outfit = outf;
+                        Outfit.outfitDict[player.outfitID] = outf;
+                    }
+                });
+            }
         }
         internal static void OutfitForSale(On.OutfitMerchantNpc.orig_CreateOutfitStoreItem orig, OutfitMerchantNpc self, Vector2 pos, string givenID) {
             if (givenID == String.Empty) {
@@ -80,8 +125,47 @@ namespace LegendAPI {
               c.Emit(OpCodes.Ldarg_2);
               c.Emit(OpCodes.Ldarg_3);
               c.EmitDelegate<Action<OutfitModStat,Player,bool,bool>>((modifier,player,status,update) => {
-                 if(OutfitCatalog.ContainsKey(modifier.modifierID)){
-                   OutfitCatalog[modifier.modifierID].customMod(player,status,update,modifier);
+                 if(modifier.modType == CustomModType && OutfitCatalog.ContainsKey(modifier.modifierID)){
+                     OutfitCatalog[modifier.modifierID].customMod(player,status,update,modifier);
+                 }
+                 else if(modifier.modType == CopyCatModType && Outfit.OutfitDict.ContainsKey(modifier.modifierID) && modifier.modifierID != player.outfitID){ 
+                        var curout = Outfit.OutfitDict[modifier.modifierID];
+                        var exout = Outfit.GetAvailableOutfit(player.outfitID);
+                        if(exout == null || exout == Outfit.normalOutfit){
+                          return;
+                        }
+                        if(CopycatCatalog.ContainsKey(exout.outfitID)){
+                            exout = CopycatCatalog[exout.outfitID];
+                        }
+                        var allowUp = curout.modList.Find(x=>x.modType == OutfitModStat.OutfitModType.AllowUpgrade);
+                        if(exout.useLeveling && !curout.useLeveling){
+                            curout.lvlModList.Clear();
+                            curout.levelModStat.Reset();
+                            player.absEnemyKillEventHandlers -= curout.OnEnemyDefeat;
+                            player.absEnemyKillEventHandlers += curout.OnEnemyDefeat;
+                        }
+                        foreach(var mod in exout.modList){
+                            if(mod.modType == CopyCatModType){
+                                continue;
+                            }
+                            if(allowUp?.boolModifier != null && mod.modType == OutfitModStat.OutfitModType.AllowUpgrade){
+                                allowUp.boolModifier.modValue &= mod.boolModifier.modValue;
+                                continue;
+                            }
+                            var nuMod = new OutfitModStat(mod); 
+                            nuMod.modifierID = mod.modifierID; 
+                            curout.modList.Add(nuMod);
+                            if(exout.useLeveling){
+                                if(nuMod.hasAddValue){
+                                    nuMod.addModifier.modValue = 0f - curout.levelModStat.CurrentValue;
+                                    curout.lvlModList.Add(nuMod.addModifier);
+                                }
+                                if(nuMod.hasMultiValue){
+                                    nuMod.multiModifier.modValue = 0f - curout.levelModStat.CurrentValue;
+                                    curout.lvlModList.Add(nuMod.multiModifier);
+                                }
+                            }
+                        }
                  }
               });
             }
@@ -105,8 +189,10 @@ namespace LegendAPI {
         }
         internal static string CustomModDescription(On.OutfitModStat.orig_GetDescription orig, OutfitModStat self, bool addExtra) {
             var result = orig(self,addExtra);
-            if (self.modType == CustomModType && OutfitCatalog.ContainsKey(self.modifierID))
+            if(self.modType == CustomModType && OutfitCatalog.ContainsKey(self.modifierID))
                 result = OutfitCatalog[self.modifierID].customDesc(addExtra,self);// + (((!addExtra) || !(self.hasAddValue || self.hasMultiValue || self.hasOverrideValue) )? string.Empty : (" <color=#009999>( </color><color=#00dddd>" + (self.hasAddValue ? Globals.PercentToStr(self.addModifier, (!self.isIncrease) ? "-" : "+") : (self.hasMultiValue ? Globals.PercentToStr(self.multiModifier, (!self.isIncrease) ? "-" : "+") : ((!self.hasOverrideValue) ? string.Empty : ((int)self.overrideModifier.modValue).ToString()))) + "</color><color=#009999> )</color>"));
+            if(self.modType == CopyCatModType)
+                result = String.Empty;
             return result;
 
         }
@@ -138,6 +224,9 @@ namespace LegendAPI {
             orig(actualOutfit);
             if(actualOutfit != Outfit.normalID && actualOutfit != "default"){
              shadowSource = actualOutfit;
+             if(OutfitCatalog.ContainsKey(actualOutfit)){
+                 Outfit.normalOutfit.useLeveling = OutfitCatalog[actualOutfit].outfit.useLeveling;
+             }
              foreach (OutfitModStat Mod in Outfit.normalOutfit.modList) {
                  if (!Mod.modType.Equals(CustomModType))
                      continue;
